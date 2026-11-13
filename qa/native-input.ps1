@@ -1,5 +1,5 @@
-param([Parameter(Mandatory=$true)][ValidateSet('focus','click','type','capture')][string]$Action,
-      [int]$TargetPid=0,[int]$X=0,[int]$Y=0,[string]$Text='', [string]$File='')
+param([Parameter(Mandatory=$true)][ValidateSet('focus','click','type','wheel','capture')][string]$Action,
+      [int]$TargetPid=0,[int]$X=0,[int]$Y=0,[int]$Delta=0,[string]$Text='', [string]$File='')
 $ErrorActionPreference='Stop'
 Add-Type -TypeDefinition @'
 using System;
@@ -19,6 +19,7 @@ public static class WinInput {
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
  [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h,ref POINT p);
  public static uint Mouse(uint flag) { var a=new INPUT[1]; a[0].type=0; a[0].u.mi.dwFlags=flag; return SendInput(1,a,Marshal.SizeOf(typeof(INPUT))); }
+ public static uint Wheel(int delta) { var a=new INPUT[1]; a[0].type=0; a[0].u.mi.mouseData=unchecked((uint)delta); a[0].u.mi.dwFlags=0x0800u; return SendInput(1,a,Marshal.SizeOf(typeof(INPUT))); }
  public static uint Key(char c,bool up) { var a=new INPUT[1]; a[0].type=1; a[0].u.ki.wScan=(ushort)c; a[0].u.ki.dwFlags=4u | (up?2u:0u); return SendInput(1,a,Marshal.SizeOf(typeof(INPUT))); }
 }
 '@
@@ -58,6 +59,11 @@ if ($Action -eq 'click') {
  if ($n -ne 2) { throw "Mouse SendInput accepted $n of 2" }
  @{mouseEvents=$n;x=$X;y=$Y}|ConvertTo-Json -Compress
  exit 0
+}
+if ($Action -eq 'wheel') {
+ if (-not [WinInput]::SetCursorPos($X,$Y)) { throw 'Cannot move cursor' }
+ $n=[WinInput]::Wheel($Delta); if ($n -ne 1) { throw 'Mouse wheel SendInput failed' }
+ @{wheelEvents=$n;delta=$Delta}|ConvertTo-Json -Compress; exit 0
 }
 if ($Action -eq 'type') {
  $n=0; foreach($ch in $Text.ToCharArray()){ $n += [WinInput]::Key($ch,$false); $n += [WinInput]::Key($ch,$true) }
