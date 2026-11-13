@@ -1,12 +1,11 @@
 name: Isolated Windows Live Update QA
 on:
-  push:
-    branches: [qa/windows-live-update-20261114]
+  workflow_dispatch:
 jobs:
   live-update:
     runs-on: windows-2025
     permissions:
-      contents: write
+      contents: read
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
