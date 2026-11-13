@@ -1,7 +1,5 @@
 name: Windows isolated live update check
 on:
-  push:
-    branches: [qa/native-input-20261114]
   workflow_dispatch:
 permissions:
   contents: read
