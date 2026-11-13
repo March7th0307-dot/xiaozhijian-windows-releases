@@ -2,11 +2,11 @@ name: Isolated Windows candidate QA
 on:
   push:
     branches: [qa/windows-x64-smoke-20261113]
-permissions:
-  contents: read
 jobs:
   smoke:
     runs-on: windows-2025
+    permissions:
+      contents: write
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
