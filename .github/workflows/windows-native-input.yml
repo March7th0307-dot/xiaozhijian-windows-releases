@@ -21,6 +21,18 @@ jobs:
         run: |
           Get-WinUserLanguageList | Select-Object LanguageTag,InputMethodTips | ConvertTo-Json -Depth 4
           Get-WindowsCapability -Online | Where-Object { $_.Name -like 'Language.Basic~~~zh-CN*' } | Select-Object Name,State | ConvertTo-Json -Compress
+      - name: Try official Chinese language pack on disposable runner
+        shell: powershell
+        timeout-minutes: 4
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $result = Add-WindowsCapability -Online -Name 'Language.Basic~~~zh-CN~0.0.1.0'
+          $result | ConvertTo-Json -Compress
+          $langs = Get-WinUserLanguageList
+          if (-not ($langs | Where-Object LanguageTag -eq 'zh-CN')) { $langs.Add('zh-CN') }
+          Set-WinUserLanguageList $langs -Force
+          Get-WinUserLanguageList | Select-Object LanguageTag,InputMethodTips | ConvertTo-Json -Depth 4
       - name: Download verified unpublished test candidate
         shell: pwsh
         env:

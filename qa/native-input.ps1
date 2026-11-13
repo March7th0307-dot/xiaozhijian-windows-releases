@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][ValidateSet('focus','click','type','wheel','capture')][string]$Action,
+param([Parameter(Mandatory=$true)][ValidateSet('focus','click','type','wheel','ime','vkeys','capture')][string]$Action,
       [int]$TargetPid=0,[int]$X=0,[int]$Y=0,[int]$Delta=0,[string]$Text='', [string]$File='')
 $ErrorActionPreference='Stop'
 Add-Type -TypeDefinition @'
@@ -18,8 +18,13 @@ public static class WinInput {
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int n);
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
  [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h,ref POINT p);
+ [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr LoadKeyboardLayout(string name,uint flags);
+ [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h,uint m,IntPtr w,IntPtr l);
+ [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,IntPtr p);
+ [DllImport("user32.dll")] public static extern IntPtr GetKeyboardLayout(uint thread);
  public static uint Mouse(uint flag) { var a=new INPUT[1]; a[0].type=0; a[0].u.mi.dwFlags=flag; return SendInput(1,a,Marshal.SizeOf(typeof(INPUT))); }
  public static uint Wheel(int delta) { var a=new INPUT[1]; a[0].type=0; a[0].u.mi.mouseData=unchecked((uint)delta); a[0].u.mi.dwFlags=0x0800u; return SendInput(1,a,Marshal.SizeOf(typeof(INPUT))); }
+ public static uint VKey(ushort vk,bool up) { var a=new INPUT[1]; a[0].type=1; a[0].u.ki.wVk=vk; a[0].u.ki.dwFlags=up?2u:0u; return SendInput(1,a,Marshal.SizeOf(typeof(INPUT))); }
  public static uint Key(char c,bool up) { var a=new INPUT[1]; a[0].type=1; a[0].u.ki.wScan=(ushort)c; a[0].u.ki.dwFlags=4u | (up?2u:0u); return SendInput(1,a,Marshal.SizeOf(typeof(INPUT))); }
 }
 '@
@@ -64,6 +69,20 @@ if ($Action -eq 'wheel') {
  if (-not [WinInput]::SetCursorPos($X,$Y)) { throw 'Cannot move cursor' }
  $n=[WinInput]::Wheel($Delta); if ($n -ne 1) { throw 'Mouse wheel SendInput failed' }
  @{wheelEvents=$n;delta=$Delta}|ConvertTo-Json -Compress; exit 0
+}
+if ($Action -eq 'ime') {
+ $hkl=[WinInput]::LoadKeyboardLayout('00000804',1)
+ $posted=$false; if ($hkl -ne [IntPtr]::Zero) { $posted=[WinInput]::PostMessage($hwnd,0x50,[IntPtr]::Zero,$hkl) }
+ Start-Sleep -Milliseconds 1000
+ $thread=[WinInput]::GetWindowThreadProcessId($hwnd,[IntPtr]::Zero)
+ $current=[WinInput]::GetKeyboardLayout($thread)
+ @{loaded=$hkl.ToInt64();posted=$posted;targetLayout=$current.ToInt64();lowLanguage=($current.ToInt64() -band 65535)}|ConvertTo-Json -Compress
+ exit 0
+}
+if ($Action -eq 'vkeys') {
+ $n=0; foreach($ch in $Text.ToUpperInvariant().ToCharArray()) { $v=[int]$ch; if ($v -lt 65 -or $v -gt 90) { throw 'Only ASCII letter keys supported' }; $n += [WinInput]::VKey([uint16]$v,$false); $n += [WinInput]::VKey([uint16]$v,$true); Start-Sleep -Milliseconds 100 }
+ $n += [WinInput]::VKey(32,$false); $n += [WinInput]::VKey(32,$true)
+ @{keyEvents=$n}|ConvertTo-Json -Compress; exit 0
 }
 if ($Action -eq 'type') {
  $n=0; foreach($ch in $Text.ToCharArray()){ $n += [WinInput]::Key($ch,$false); $n += [WinInput]::Key($ch,$true) }
