@@ -10,12 +10,14 @@ public static class WinInput {
  [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT { public int dx,dy; public UInt32 mouseData,dwFlags,time; public UIntPtr dwExtraInfo; }
  [StructLayout(LayoutKind.Sequential)] public struct KEYBDINPUT { public UInt16 wVk,wScan; public UInt32 dwFlags,time; public UIntPtr dwExtraInfo; }
  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left,Top,Right,Bottom; }
+ [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X,Y; }
  [DllImport("user32.dll", SetLastError=true)] public static extern UInt32 SendInput(UInt32 n, INPUT[] input, int size);
  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int n);
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
+ [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h,ref POINT p);
  public static uint Mouse(uint flag) { var a=new INPUT[1]; a[0].type=0; a[0].u.mi.dwFlags=flag; return SendInput(1,a,Marshal.SizeOf(typeof(INPUT))); }
  public static uint Key(char c,bool up) { var a=new INPUT[1]; a[0].type=1; a[0].u.ki.wScan=(ushort)c; a[0].u.ki.dwFlags=4u | (up?2u:0u); return SendInput(1,a,Marshal.SizeOf(typeof(INPUT))); }
 }
@@ -41,8 +43,10 @@ Start-Sleep -Milliseconds 500
 $foreground=[WinInput]::GetForegroundWindow()
 $rect=New-Object WinInput+RECT
 [void][WinInput]::GetWindowRect($hwnd,[ref]$rect)
+$client=New-Object WinInput+POINT
+[void][WinInput]::ClientToScreen($hwnd,[ref]$client)
 if ($Action -eq 'focus') {
- @{pid=$TargetPid;hwnd=$hwnd.ToInt64();foreground=$foreground.ToInt64();same=($foreground -eq $hwnd);left=$rect.Left;top=$rect.Top;right=$rect.Right;bottom=$rect.Bottom;interactive=[System.Environment]::UserInteractive}|ConvertTo-Json -Compress
+ @{pid=$TargetPid;hwnd=$hwnd.ToInt64();foreground=$foreground.ToInt64();same=($foreground -eq $hwnd);clientX=$client.X;clientY=$client.Y;left=$rect.Left;top=$rect.Top;right=$rect.Right;bottom=$rect.Bottom;interactive=[System.Environment]::UserInteractive}|ConvertTo-Json -Compress
  exit 0
 }
 if ($foreground -ne $hwnd) { throw 'Cannot focus app on interactive desktop; native input is unverified' }
