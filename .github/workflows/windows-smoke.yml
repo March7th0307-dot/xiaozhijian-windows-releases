@@ -2,7 +2,7 @@ name: Windows synthetic screenshot QA
 on:
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   screenshots:
     runs-on: windows-2025
