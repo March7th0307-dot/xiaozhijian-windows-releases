@@ -16,6 +16,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Inspect Microsoft Pinyin availability on disposable runner
+        shell: pwsh
+        run: |
+          Get-WinUserLanguageList | Select-Object LanguageTag,InputMethodTips | ConvertTo-Json -Depth 4
+          Get-WindowsCapability -Online | Where-Object { $_.Name -like 'Language.Basic~~~zh-CN*' } | Select-Object Name,State | ConvertTo-Json -Compress
       - name: Download verified unpublished test candidate
         shell: pwsh
         env:
