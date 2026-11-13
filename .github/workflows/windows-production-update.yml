@@ -1,7 +1,6 @@
 name: Isolated Windows Production Update QA
 on:
-  push:
-    branches: [qa/windows-production-update-20261114]
+  workflow_dispatch:
 jobs:
   production-update:
     runs-on: windows-2025
